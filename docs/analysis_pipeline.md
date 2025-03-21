@@ -4,14 +4,22 @@
 
 The goal is to build a pipeline that automates the static analysis of malware samples, extracting meaningful features and preparing data for training an AI/ML model. This tool will streamline repetitive tasks and lay the groundwork for advanced malware classification and detection.
 
----
-
 ## **Pipeline Workflow**
 
 ### **1. Input: Malware Samples**
 
-- Accepts various file formats (e.g., `.exe`, `.dll`, `.apk`, `.bin`, `.elf`).
-- Supports batch processing for analyzing multiple samples at once.
+The first stage of the pipeline focuses on preparing malware samples for analysis.
+This stage is designed to handle various file formats and ensure compatibility with the rest of the pipeline.
+
+Key Features:
+
+- **File Format Compatibility**: Accepts multiple file types such as `.exe`, `.dll`, `.apk`, `.bin`, `.elf`, among others.
+  This ensures flexibility in analyzing samples across different platforms.
+- **Optional Batch Processing**: Enables the analysis of multiple samples simultaneously, making it efficient for handling large datasets.
+- **File Validation**: Ensures that the provided samples are intact and suitable for analysis. This includes checking
+  file integrity and identifying corrupted or incomplete files.
+- **Metadata Extraction**: Gathers basic information about each sample, such as file size, hash values (MD5, SHA256),
+  and timestamps. This metadata serves as an initial reference for further analysis.
 
 ### **2. Preprocessing**
 
@@ -74,8 +82,6 @@ The goal is to build a pipeline that automates the static analysis of malware sa
   - Entropy results
 - Save reports in a user-friendly format (e.g., JSON, CSV, HTML).
 
----
-
 ## **Pipeline Architecture**
 
 ### **1. Modular Design**
@@ -96,8 +102,6 @@ The goal is to build a pipeline that automates the static analysis of malware sa
 
 - Design the pipeline to allow for future additions (e.g., dynamic analysis, sandboxing).
 
----
-
 ## **Technology Stack**
 
 ### **1. Programming Language**
@@ -117,8 +121,6 @@ The goal is to build a pipeline that automates the static analysis of malware sa
 
 - Flask/Django (optional): For building a web-based interface for the pipeline.
 
----
-
 ## **Future Enhancements**
 
 ### **1. Dynamic Analysis**
@@ -136,21 +138,8 @@ The goal is to build a pipeline that automates the static analysis of malware sa
 - Use tools like Kibana or Grafana for interactive data visualization.
 - Display entropy graphs, opcode distributions, etc.
 
----
-
 ## **Challenges**
 
 - Handling large datasets without performance bottlenecks.
 - Ensuring compatibility with diverse malware types.
 - Balancing automation with manual oversight for edge cases.
-
----
-
-## **Next Steps**
-
-1. **Build a Prototype**:
-   - Focus on the core pipeline (file validation, static analysis modules).
-2. **Test with Samples**:
-   - Use your malware dataset for testing and debugging.
-3. **Iterate and Improve**:
-   - Add feature extraction and ML components gradually.

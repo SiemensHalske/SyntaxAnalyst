@@ -1,0 +1,29 @@
+# Exclude virtual environment directories
+.venv/
+
+# Exclude IDE/editor-specific directories
+.vscode/
+
+# Exclude specific files
+.markdownlint.json
+.pylintrc
+
+# Exclude Python cache directories and files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Exclude sensitive files (keep them local)
+.env
+.younoseyml
+
+# General rules for temporary/system files
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Prevent accidental uploads of other environment-related files
+*.env.*
+*.local
