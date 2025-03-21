@@ -4,7 +4,11 @@
 
 The goal is to build a pipeline that automates the static analysis of malware samples, extracting meaningful features and preparing data for training an AI/ML model. This tool will streamline repetitive tasks and lay the groundwork for advanced malware classification and detection.
 
-## **Pipeline Workflow**
+## Stages
+
+The pipeline consists of the following stages:
+
+## Stage 1
 
 ### **1. Input: Malware Samples**
 
@@ -13,19 +17,18 @@ This stage is designed to handle various file formats and ensure compatibility w
 
 Key Features:
 
-- **File Format Compatibility**: Accepts multiple file types such as `.exe`, `.dll`, `.apk`, `.bin`, `.elf`, among others.
-  This ensures flexibility in analyzing samples across different platforms.
+- **File Format Compatibility**: Accepts multiple file types such as `.exe`, `.dll`, `.apk`, `.bin`, `.elf`, among others. This ensures flexibility in analyzing samples across different platforms.
 - **Optional Batch Processing**: Enables the analysis of multiple samples simultaneously, making it efficient for handling large datasets.
-- **File Validation**: Ensures that the provided samples are intact and suitable for analysis. This includes checking
-  file integrity and identifying corrupted or incomplete files.
-- **Metadata Extraction**: Gathers basic information about each sample, such as file size, hash values (MD5, SHA256),
-  and timestamps. This metadata serves as an initial reference for further analysis.
+- **File Validation**: Ensures that the provided samples are intact and suitable for analysis. This includes checking file integrity and identifying corrupted or incomplete files.
+- **Metadata Extraction**: Gathers basic information about each sample, such as file size, hash values (MD5, SHA256), and timestamps. This metadata serves as an initial reference for further analysis.
 
 ### **2. Preprocessing**
 
 - **File Validation**: Check file integrity and ensure compatibility.
 - **File Type Detection**: Use `file` command or similar tools to determine the type (e.g., PE, ELF, APK).
 - **Metadata Extraction**: Gather basic information like size, timestamps, and hash values (MD5, SHA256).
+
+## Stage 2
 
 ### **3. Static Analysis Modules**
 

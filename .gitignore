@@ -27,3 +27,4 @@ Thumbs.db
 # Prevent accidental uploads of other environment-related files
 *.env.*
 *.local
+pipeline_scripts/output/metadata_*.json

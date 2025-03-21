@@ -1,34 +1,18 @@
-"""
-Stage 1: Input - Malware Samples
-
-The first stage of the pipeline focuses on preparing malware samples for analysis. 
-This stage is designed to handle various file formats and ensure compatibility with the rest of the pipeline.
-
-Key Features:
-- **File Format Compatibility**: Accepts multiple file types such as `.exe`, `.dll`, `.apk`, `.bin`, `.elf`, among others. 
-  This ensures flexibility in analyzing samples across different platforms.
-- **Optional Batch Processing**: Enables the analysis of multiple samples simultaneously, making it efficient for handling large datasets.
-- **File Validation**: Ensures that the provided samples are intact and suitable for analysis. This includes checking 
-  file integrity and identifying corrupted or incomplete files.
-- **Metadata Extraction**: Gathers basic information about each sample, such as file size, hash values (MD5, SHA256), 
-  and timestamps. This metadata serves as an initial reference for further analysis.
-
-Stage 1 sets the groundwork for the rest of the pipeline by ensuring that all input samples are properly validated 
-and ready for processing.
-"""
-
 import os
 import sys
 import shutil
 import argparse
 import json
 import pandas as pd
+import uuid
 from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Dict
 from pathlib import Path
-from hashlib import md5, sha256
+from hashlib import md5, sha256, sha1
 from zipfile import ZipFile
+
+import magic
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress
@@ -37,16 +21,9 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import print
 
-@dataclass
-class Sample:
-    """
-    Data class to store information about a malware sample.
-    """
-    name: str
-    size: int
-    md5: str
-    sha256: str
-    timestamp: str
+from .config import Sample, HashTree, calculate_file_hashes
+
+never_run = False
     
 class Stage1:
     """
@@ -68,7 +45,9 @@ class Stage1:
             output_dir (str): Directory where the processed samples will be saved.
             batch_mode (bool): Flag to enable batch processing of multiple samples.
         """
+        
         self.input_file = input_file
+        self.input_path_full = Path(input_file)
         self.output_dir = output_dir
         self.batch_mode = batch_mode
         self.save_metadata = save_metadata
@@ -89,8 +68,11 @@ class Stage1:
         table.add_column("Attribute", justify="right", style="cyan")
         table.add_column("Value", style="magenta")
         
+        table.add_row("File Path", sample.file_path)
         table.add_row("Name", sample.name)
         table.add_row("Size", str(sample.size) + " bytes")
+        table.add_row("File Type", sample.file_type)
+        table.add_row("Encoding", sample.encoding)
         table.add_row("MD5 Hash", sample.md5)
         table.add_row("SHA256 Hash", sample.sha256)
         table.add_row("Timestamp", sample.timestamp)
@@ -102,14 +84,25 @@ class Stage1:
         Process the malware samples based on the input provided.
         """
         if self.batch_mode:
+            self.console.print("[bold]Processing samples in batch mode...[/bold]")
             ack = self.process_batch()
         else:
+            self.console.print("[bold]Processing a single sample...[/bold]")
             ack = self.process_single()
             
         if not ack:
+            self.console.print("[bold red]Error:[/bold red] Failed to process samples.")
             return False
         
-        self.save_metadata() if self.save_metadata else None
+        if not self.save_metadata:
+            self.console.print("[bold]Metadata not saved.[/bold]")
+            return True
+        
+        ack = self.save_metadata_to_file()
+        if not ack:
+            self.console.print("[bold red]Error:[/bold red] Failed to save metadata.")
+            return False
+        
         return True
     
     def process_file(self, file_path: str) -> Sample:
@@ -122,17 +115,29 @@ class Stage1:
         Returns:
             Sample: Information about the processed malware sample.
         """
+        file_uuid = str(uuid.uuid4())
         file_name = Path(file_path).name
         file_size = Path(file_path).stat().st_size
-        file_md5 = md5(Path(file_path).read_bytes()).hexdigest()
-        file_sha256 = sha256(Path(file_path).read_bytes()).hexdigest()
+        
+        # get the hashes of stage1
+        sample_tree = init_sample_tree()
+        sample_tree["stage1"] = calculate_file_hashes(1, file_path, sample_tree)
+                
         file_timestamp = datetime.fromtimestamp(Path(file_path).stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
         
+        meta_file = self.analyze_file(file_path)
+        if meta_file:
+            file_type, encoding = meta_file
+        else:
+            file_type, encoding = "Unknown", "Unknown"
+
         sample = Sample(
+            file_path=file_path,
             name=file_name,
             size=file_size,
-            md5=file_md5,
-            sha256=file_sha256,
+            file_type=file_type,
+            encoding=encoding,
+            hashes=stage1_hashes,
             timestamp=file_timestamp
         )
         
@@ -154,12 +159,12 @@ class Stage1:
         
         self.display_summary(sample)
         
-    def process_batch(self):
+    def process_batch(self) -> bool:
         """
         Process multiple malware samples.
         In this case `input_file`  represents a directory containing multiple samples.
         """
-        
+
         if not self.input_file:
             self.input_file = Prompt.ask("Enter the path to the directory containing malware samples:")
         
@@ -168,45 +173,100 @@ class Stage1:
             return False
         
         files = [f for f in os.listdir(self.input_file) if os.path.isfile(os.path.join(self.input_file, f))]
-        
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Processing samples...", total=len(files))
-            
+
+        if never_run:
+            with Progress() as progress:
+                task = progress.add_task("[cyan]Processing samples...", total=len(files))
+                
+                for file in files:
+                    file_path = os.path.join(self.input_file, file)
+                    sample = self.process_file(file_path)
+                    self.samples.append(sample)
+                    progress.update(task, advance=1)
+        else:
             for file in files:
                 file_path = os.path.join(self.input_file, file)
                 sample = self.process_file(file_path)
                 self.samples.append(sample)
-                progress.update(task, advance=1)
-        
+
         for sample in self.samples:
             self.display_summary(sample)
         
         self.console.print("\n[green][bold]Batch processing completed.[/bold][/green]")
+        return True
+
+    def analyze_file(self, input_file) -> tuple or bool:
+        """
+        Analyze the file type and encoding using the 'magic' module.
         
-    def save_metadata(self):
+        Args:
+            input_file (str): Path to the input file.
+        
+        Returns:
+            tuple: (file_type, encoding) if successful.
+            bool: False if the operation fails.
+        """
+
+        
+        if not os.path.exists(input_file):
+            self.console.print(f"[bold red]Error:[/bold red] File not found: {input_file}")
+            return False
+
+        try:
+            # Initialize magic for MIME type and encoding detection
+            mime_detector = magic.Magic(mime=True)  # For MIME type detection
+            encoding_detector = magic.Magic(mime_encoding=True)  # For encoding detection
+
+            # Detect file type and encoding
+            file_type = mime_detector.from_file(input_file)
+            encoding = encoding_detector.from_file(input_file)
+
+            # Return results as a tuple
+            return file_type, encoding
+
+        except Exception as e:
+            self.console.print(f"[bold red]Error:[/bold red] Failed to analyze file '{input_file}': {str(e)}")
+            return False
+
+    def save_metadata_to_file(self) -> bool:
         """
         Save the metadata of the processed samples to a JSON file.
         """
-        
+        # Ensure the output directory is specified
         if not self.output_dir:
             self.output_dir = Prompt.ask("Enter the path to the output directory:")
         
-        if not Path(self.output_dir).exists():
-            os.makedirs(self.output_dir)
+        # Check if the directory exists, create it if not
+        try:
+            if not Path(self.output_dir).exists():
+                self.console.print(f"[bold yellow]Warning:[/bold yellow] Output directory '{self.output_dir}' does not exist. Creating it...")
+                Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            self.console.print(f"[bold red]Error:[/bold red] Failed to create output directory '{self.output_dir}': {str(e)}")
+            return False
         
+        # Ensure there are samples to save
+        if not self.samples:
+            self.console.print("[bold red]Error:[/bold red] No samples to save. Metadata file will not be created.")
+            return False
+        
+        # Generate metadata file name
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         file_name = f"metadata_{timestamp}.json"
-        
         metadata_file = os.path.join(self.output_dir, file_name)
         
-        with open(metadata_file, "w") as f:
-            metadata = []
-            for sample in self.samples:
-                metadata.append(sample.__dict__)
-            json.dump(metadata, f, indent=4)
-        
-        self.console.print(f"\n[bold]Metadata saved to:[/bold] {metadata_file}")
-        
+        try:
+            # Write metadata to the JSON file
+            with open(metadata_file, "w") as f:
+                metadata = [sample.__dict__ for sample in self.samples]
+                json.dump(metadata, f, indent=4)
+            
+            self.console.print(f"\n[bold green]Success:[/bold green] Metadata saved to: {metadata_file}")
+            return True
+        except Exception as e:
+            self.console.print(f"[bold red]Error:[/bold red] Failed to write metadata to file '{metadata_file}': {str(e)}")
+            return False
+    
     def ensure_file(self, file_path: str) -> bool:
         """
         Ensure that the provided file is valid and accessible.
@@ -222,12 +282,18 @@ class Stage1:
         """
         Run the Stage 1 pipeline.
         """
-        self.console.print(Panel.fit("[bold cyan]Stage 1: Input - Malware Samples[/bold cyan]", title="Pipeline Stage"))
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.console.print(Panel.fit(
+            "[bold cyan]Stage 1: Input - Malware Samples[/bold cyan]\n"
+            f"[bold]Timestamp:[/bold] {timestamp}\n",
+            title="Pipeline Stage"
+        ))
         self.process_samples()
         
 if __name__ == "__main__":
-    input_file = "input"
-    output_dir = "output"
+    base_path = "C:\\Users\\Hendrik.Siemens\\Documents\\SyntaxAnalyst\\pipeline_scripts"
+    input_file = os.path.join(base_path, "input")
+    output_dir = os.path.join(base_path, "output")
     batch_mode = True
     save_metadata = True
     

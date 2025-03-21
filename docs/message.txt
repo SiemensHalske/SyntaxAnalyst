@@ -1,0 +1,10 @@
+Hallo Prof. Dr. Kruse,
+
+im Zusammenhang mit dem Thema "KI- und algorithmenbasierte Kriegsführung / Ethik" hätte ich ein persönliches Anliegen, das ich gerne nach der Vorlesung kurz unter vier Augen besprechen würde. Ich habe kürzlich eine Idee für ein Projekt entwickelt und gestern Abend zu Papier gebracht. Zudem werde ich bei Takko künftig verstärkt in diesem Bereich tätig sein.
+
+Es geht um ein Modell, das Schadsoftware statisch analysieren kann – ohne Codeausführung. Ziel ist nicht die direkte Erkennung, sondern die Klassifizierung und Bewertung, um Analysten und Reverse-Engineers zu unterstützen. Ich habe bereits Schadsoftware und Frameworks wie Ransomware oder RATs gesammelt. Langfristig soll das Modell auch eigene Schadsoftware generieren, um Systeme zu testen.
+
+Ich suche Ihre Einschätzung, ob es sich lohnt, diese Idee weiterzuverfolgen. Risiken und ethische Aspekte sind mir bewusst, weshalb ich Ihre Meinung sehr schätze.
+
+Mit freundlichen Grüßen,
+Hendrik Siemens
