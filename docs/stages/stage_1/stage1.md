@@ -14,10 +14,12 @@
     - [**6. Error Handling**](#6-error-handling)
       - [Missing Files or Directories](#missing-files-or-directories)
   - [TODOs for Stage 1](#todos-for-stage-1)
-    - [Expand on Hash Validation Logic](#expand-on-hash-validation-logic)
-    - [Error Logging Improvements](#error-logging-improvements)
-    - [Integration with Stage 2](#integration-with-stage-2)
-    - [Visuals](#visuals)
+    - [_TODO_](#todo)
+      - [Expand on Hash Validation Logic](#expand-on-hash-validation-logic)
+      - [Error Logging Improvements](#error-logging-improvements)
+      - [Integration with Stage 2](#integration-with-stage-2)
+      - [Visuals](#visuals)
+    - [Next Tasks](#next-tasks)
 
 ## **Overview**
 
@@ -302,24 +304,55 @@ if __name__ == "__main__":
 
 ## TODOs for Stage 1
 
-### Expand on Hash Validation Logic
+### _TODO_
+
+#### Expand on Hash Validation Logic
 
 While you’ve mentioned hash comparison as part of the pipeline, you could elaborate on how mismatches will be handled.
 
 - For example:
   - Will the pipeline flag mismatched hashes and halt processing?
-  - Will there be an option to, reprocess files with mismatched hashes?
+  - Will there be an option to reprocess files with mismatched hashes?
   - reprocess files with mismatched hashes?
 
-### Error Logging Improvements
+#### Error Logging Improvements
 
-Stage 1 coveres error handling well, but adding a note about logging errors (e.g., to a file) could make debugging easier.
-This doesn’t need to be implemented right now—just something to keep in mind for later.
+Stage 1 coveres error handling well, but adding a note about logging errors (e.g., to a file) could make debugging easier. This doesn’t need to be implemented right now—just something to keep in mind for later.
 
-### Integration with Stage 2
+#### Integration with Stage 2
 
 Stage 1 could briefly mention how it`s output (e.g., Sample objects and HashTree) will be used in Stage 2. This helps tie the stages together conceptually.
 
-### Visuals
+#### Visuals
 
 A simple diagram showing the flow of data through Stage 1 (e.g., Input → Metadata Extraction → Hash Calculation → Output) could make the documentation more engaging.
+
+### Next Tasks
+
+- [ ] Expand on Hash Validation Logic:
+  - [ ] Define Hash Mismatch Handling:
+    - [x] `hok: bool = False` Flag for Hash Mismatch Handling between Stages
+    - [ ] Implement Hash Comparison Logic:
+      - [ ] Compare Hashes between Stages at the End of Each Stage
+      - [ ] Flag Mismatched Hashes
+      - [ ] Provide Options for Handling Mismatched Hashes:
+        - [ ] Add Retry Mechanism for Mismatched Hashes (Optional)
+- [ ] Error Handling Improvements:
+  - [x] Check if the file is a directory or a file
+  - [x] Check if the file is in the allowed file types:
+    - [x] Create an empty sample object to keep the pipeline consistent
+- [ ] Error Logging Improvements:
+  - [ ] Implement Error Logging:
+    - [ ] Implement Error Logging
+    - [ ] Implement Error Logging
+  - [ ] Add Logging to Key Error Points:
+    - [ ] Add Logging to Key Error Points
+    - [ ] Add Logging to Key Error Points
+  - [ ] Document Logging Mechanism:
+    - [ ] Document Logging Mechanism
+    - [ ] Document Logging Mechanism
+  - [ ] Test Error Logging Functionality:
+    - [ ] Test Error Logging Functionality
+    - [ ] Test Error Logging Functionality
+- [ ] Integration with Stage 2
+- [ ] Visuals for the Documentation

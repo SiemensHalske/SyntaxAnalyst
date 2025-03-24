@@ -28,3 +28,23 @@ Thumbs.db
 *.env.*
 *.local
 pipeline_scripts/output/metadata_*.json
+*.log
+
+# Exclude binaries and executables
+*.dll
+*.exe
+*.out
+*.so
+*.elf
+
+# Exclude Ghidra project and project files
+*.gpr
+*.gpf
+*.rep
+*.repf
+*.gprf
+*.gpf
+*.gpf.xml
+*.gpr.xml
+*.rep.xml
+

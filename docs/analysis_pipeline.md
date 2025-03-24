@@ -72,7 +72,7 @@ Key Features:
 
 ### **5. Classification and Labeling**
 
-- Assign labels to samples (e.g., RAT, Exploit Kit, IoT Malware).
+- Assign labels to samples (e.  .g., RAT, Exploit Kit, IoT Malware).
 - Store labeled data for training the AI/ML model.
 
 ### **6. Output**
