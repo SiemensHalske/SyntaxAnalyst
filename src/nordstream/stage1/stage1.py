@@ -391,7 +391,7 @@ class Stage1:
 
 
 if __name__ == "__main__":
-    BASE_PATH = "C:\\Users\\Hendrik.Siemens\\Documents\\SyntaxAnalyst\\pipeline_scripts"
+    BASE_PATH = "/home/bortex/schwarzwaldhonig/SyntaxAnalyst/"
     input_file = os.path.join(BASE_PATH, "input")
     output_dir = os.path.join(BASE_PATH, "output")
     BATCH = True
