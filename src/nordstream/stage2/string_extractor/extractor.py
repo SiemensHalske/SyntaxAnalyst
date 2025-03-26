@@ -5,6 +5,7 @@ from nordstream.config import Sample
 from nordstream.utils import PipelineLogger
 from nordstream.stage2.base import SubtaskBase
 
+
 class StringExtractor(SubtaskBase):
     """
     🧩 Subtask A – String Extraction & Classification
@@ -39,19 +40,28 @@ class StringExtractor(SubtaskBase):
 
     url_pattern = r'(https?|ftp)://[^\s/$.?#].[^\s]*'
     ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
-    cmd_pattern = r'(?i)(cmd\.exe|powershell|curl|wget|bash|sh|python|perl|php|gcc|g\+\+|javac|java|node|npm|pip|ruby|gem|gcc|g\+\+|make|cmake|msbuild|nmake|cl|csc|ld|as|gas|nasm'
+    cmd_pattern = r'(?i)(cmd\.exe|powershell|curl|wget|bash|sh|python|perl|php|gcc|g\+\+|javac|java|node|npm|pip|ruby|gem|make|cmake|msbuild|nmake|cl|csc|ld|as|gas|nasm)'
+    min_length = 4
 
     def __init__(self):
         self.logger = PipelineLogger(use_json=False)
 
-    def run(self, sample: Sample):
+    def _get_section_data(self, filename):
         """
-        Run the string extraction subtask on the given sample.
+        Concatenate all binary sections into a single byte stream.
         """
+        binary = lief.parse(filename)  # pylint: disable=no-member
+        if binary is None:
+            print("Error: Unable to parse the binary.")
+            return None
 
-        strings_list = self.extract_strings_from_binary(sample.file_path)
-        
-        # String classification logic
+        section_data = b"".join(bytes(section.content) for section in binary.sections)
+        return section_data
+
+    def _extract_suspicous_strings(self, strings_list):
+        """
+        Classify strings based on suspicious patterns (URLs, IPs, commands).
+        """
         suspicious_urls = []
         suspicious_ips = []
         suspicious_commands = []
@@ -64,14 +74,38 @@ class StringExtractor(SubtaskBase):
             elif re.search(self.cmd_pattern, s):
                 suspicious_commands.append(s)
 
-        
-        # Assemble JSON output
+        return suspicious_urls, suspicious_ips, suspicious_commands
+
+    def run(self, sample: Sample):
+        """
+        Run the string extraction subtask on the given sample.
+        """
+        strings_list = self.extract_strings_from_binary(sample.file_path)
+
+        # String classification logic
+        suspicious_urls, suspicious_ips, suspicious_commands = self._extract_suspicous_strings(strings_list)
+
+        try:
+            section_data = self._get_section_data(sample.file_path)
+            if section_data is not None:
+                found_unicode = re.findall(
+                    rb'(?:[\x00-\x7F]{2}){' + str(self.min_length).encode() + rb',}', section_data)
+            else:
+                found_unicode = []
+            unicode_strings = [
+                s.decode('utf-16-le', errors='replace') for s in found_unicode
+            ]
+            strings_list.extend(unicode_strings)
+        except UnicodeDecodeError:
+            print("Error: Unable to decode Unicode strings.")
+
+        # Assemble JSON output with deduplication
         output = {
-            "raw_strings": strings_list,
+            "raw_strings": list(set(strings_list)),
             "suspicious": {
-                "urls": suspicious_urls,
-                "ips": suspicious_ips,
-                "commands": suspicious_commands
+                "urls": list(set(suspicious_urls)),
+                "ips": list(set(suspicious_ips)),
+                "commands": list(set(suspicious_commands))
             }
         }
 
@@ -79,25 +113,22 @@ class StringExtractor(SubtaskBase):
         self.logger.info(output)
 
         return output
-    
+
     def extract_strings_from_binary(self, filename, min_length=4):
         """
-        Extract strings from a binary file using LIEF.
+        Extract ASCII strings from a binary file using LIEF.
         """
-        # Parse the binary with LIEF
         binary = lief.parse(filename)  # pylint: disable=no-member
         if binary is None:
             print("Error: Unable to parse the binary.")
             sys.exit(1)
-        
+
         strings_list = []
-        # Iterate over all sections in the binary
         for section in binary.sections:
-            # Convert section content (a list of ints) to a bytes object
             section_data = bytes(section.content)
-            # Use regex to find sequences of printable ASCII characters (from space to ~)
-            found_strings = re.findall(rb'[\x20-\x7E]{' + str(min_length).encode() + rb',}', section_data)
-            # Decode the bytes to string using latin1 encoding to preserve original characters
-            strings_list.extend([s.decode('latin1', errors='replace') for s in found_strings])
-        
+            found_strings = re.findall(
+                rb'[\x20-\x7E]{' + str(min_length).encode() + rb',}', section_data)
+            strings_list.extend(
+                [s.decode('latin1', errors='replace') for s in found_strings])
+
         return strings_list
