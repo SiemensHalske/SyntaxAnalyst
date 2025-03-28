@@ -1,6 +1,5 @@
 from hashlib import md5, sha256, sha1
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
 
 @dataclass
 class AllowedTypes:
@@ -28,7 +27,7 @@ class HashTree:
 @dataclass
 class Sample:
     """
-    Data class to store infomation about a malware sample.
+    Data class to store information about a malware sample.
     """
     uuid: str
     file_path: str = ''
@@ -36,21 +35,21 @@ class Sample:
     size: int = 0
     file_type: str = AllowedTypes.UNKNOWN
     encoding: str = ''
-    hashes: dict = {
+    hashes: dict = field(default_factory=lambda: {
         "stage1_hashes": HashTree(),
         "stage2_hashes": HashTree(),
         "stage3_hashes": HashTree()
-    }
-    timestamp: str
-    data: dict = {
-        "strings": dict,
-        "headers": dict,
-        "embedded_data": dict,
-        "opcodes": dict,
-        "entropy": dict,
-        "imports": dict,
-        "exports": dict,
-    }
+    })
+    timestamp: str = ''
+    data: dict = field(default_factory=lambda: {
+        "strings": {},
+        "headers": {},
+        "embedded_data": {},
+        "opcodes": {},
+        "entropy": {},
+        "imports": {},
+        "exports": {},
+    })
 
     def __str__(self):
         return f"Sample: {self.name} ({self.file_type})"
