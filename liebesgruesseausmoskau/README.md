@@ -1,118 +1,88 @@
-# LIEBESGRUESSE AUS MOSKAU
+# 🚀 Concept: Linux Arbitrary Credential Overwrite Exploit PoC
 
-Local Privilege Escalation & Payload Injection Toolkit  
-Zielplattform: Linux (x86_64) / Windows (x64)  
-Status: **IN DEVELOPMENT**
+## 🎯 Objective
 
----
+Build a PoC that demonstrates local privilege escalation on Linux by:
+    - Exploiting a vulnerable kernel module (simulated as a “vulndev” driver)
+    - Using an unchecked IOCTL to obtain an arbitrary write primitive
+    - Overwriting the current process’s credentials (the cred structure) to set UID, EUID, GID, etc. to 0
+    - Finally, spawning a root shell
 
-## 🔧 Projektübersicht
+This shows that if a non-root user can trigger an arbitrary write in the kernel—even via a buggy driver—they can completely bypass standard access controls.
 
-`liebesgruesseausmoskau` ist ein Toolkit zur Durchführung von Low-Level-Injections, Exploit-Proof-of-Concepts und LPE-Angriffen.  
-Es wurde für präzise, kontrollierte Manipulation von Prozessen, Speicherbereichen und Kernelstrukturen entwickelt – ohne Frameworks, ohne Bloat.
+## 🧩 Key Components
 
-**Kein Metasploit. Kein Empire. Nur direkter Zugriff.**
+- Vulnerable Kernel Module (vulndev.ko)
+  - Purpose: Expose a character device (e.g. /dev/vulndev) with an IOCTL that accepts a “write-what-where” structure.
+  - Behavior: The module will copy user-supplied data into an arbitrary kernel address without proper validation.
+  - Notes: For our PoC, this module is intentionally insecure; in a real attack, such a driver might be found on misconfigured systems or legacy hardware.
+- Userland Exploit (linux_cred_escalation.py)
+  - Purpose: Open the vulnerable device and use the arbitrary write primitive to modify the kernel’s view of our process.
+  - Steps:
+    - Query Kernel Symbols: Either by reading kallsyms or using a known symbol address (e.g., the location of the current process’s task_struct and its cred pointer) from a test kernel.
+    - Locate and Overwrite Credentials: Use the IOCTL to zero out the UID, EUID, and similar fields in the cred structure of our process.
+    - Verify: Check /proc/self/status (or simply call id) to ensure we now have UID 0.
+    - Spawn a Root Shell: If successful, drop into an interactive shell with elevated privileges.
+- Supporting Modules and Documentation
+  - DKOM / Object Manipulation Tools: In parallel, develop a helper module (e.g., utils/dkom_tools.py) that can parse in-memory layouts of task_struct and cred for educational purposes.
+  - Documentation: Create a markdown document (e.g., docs/LinuxLPE.md) mapping Windows LPE concepts (like token swapping, arbitrary write, and PreviousMode bypass) to their Linux equivalents (credential overwrite, arbitrary kernel write, etc.).
+  - Optional Memory Scanner: Enhance our existing memory peeker to help locate our target credential fields—useful for debugging or dynamic symbol lookup.
 
----
+## 🛠 Attack Chain Overview
 
-## 📦 Projektstruktur
+- Preconditions:
+  - The vulnerable module is loaded, and the device /dev/vulndev is accessible.
+  - The kernel has exposed kallsyms (or you run on a test kernel where symbol addresses are known).
+- Exploit Execution:
+  - The exploit script (running as the unprivileged user) opens /dev/vulndev.
+  - It crafts a “write-what-where” payload:
+    - Where: The address of the UID/EUID fields in our current process’s cred structure.
+    - What: The value 0 (zero) to set the UID fields to root.
+  - The payload is sent via an IOCTL call.
+  - If successful, our process’s credentials are modified to be that of root.
+- Post-Exploitation:
+    The script verifies the escalation (e.g., prints id).
+    It then spawns an interactive shell.
 
 ```plaintext
-.
- ├── exploits/ # Lokale Exploits (LPE, Dirty Pipe, mmap abuse, ptrace abuse)
- ├── payloads/ # Shellcodes, Reverse Shells, ELF Dropper 
- │ └── compiled/ # Bereits kompilierte Payloads 
- ├── utils/ # Memory Tools, Struct-Mapper, Trampolin-Builder
- ├── docs/ # Technische Notizen, Referenzpapers (u.a. LPEexploit.pdf) 
- ├── tmp/ # Runtime-Artefakte, z.B. Dumpfiles oder mmap-Testbereiche 
- ├── main.py # Einstiegspunkt mit CLI 
- ├── config.yaml # Konfigurierbare Parameter für Module 
- └── README.md # Dieses Dokument
+liebesgruesseausmoskau/
+├── exploits/
+│   ├── linux/
+│   │   ├── vulndev.c          # Source code for the vulnerable driver
+│   │   ├── Makefile           # Build instructions for vulndev.ko
+│   │   └── linux_cred_escalation.py  # The userland exploit script
+├── utils/
+│   └── dkom_tools.py          # Helper module for parsing task_struct, cred, etc.
+├── docs/
+│   └── LinuxLPE.md          # Documentation mapping concepts and explaining the PoC
+└── README.md                # Overview and usage instructions
 ```
 
----
+## 📝 Development Roadmap
 
-## 💣 Funktionen (aktuell)
+- Phase 1 – Build the Vulnerable Driver:
+  - Write a minimal kernel module (vulndev.c) that registers a character device.
+  - Implement an IOCTL (e.g., code 0xdeadbeef) that copies data from user space to a kernel pointer provided by the user.
+  - Test and load the module on a test system.
+- Phase 2 – Develop the Userland Exploit:
+  - Write linux_cred_escalation.py to open /dev/vulndev.
+  - Incorporate functions to either:
+    - Parse /proc/kallsyms for the address of the current process’s task_struct/cred pointer.
+    - Or use a hardcoded address (for testing purposes).
+  - Construct the “write-what-where” payload and invoke the IOCTL.
+  - Verify privilege escalation and spawn a shell.
+- Phase 3 – Enhance & Document:
+  - Integrate helper functions in dkom_tools.py to display memory layouts.
+  - Document the attack chain, discuss DKOM tactics, and compare Windows vs. Linux exploitation approaches in LinuxLPE.md.
 
-- 🧠 **Live Process Injection**  
-  via `ptrace`, `process_vm_writev`, RIP-Hijack, Stack/Mmap-Shellcode Injection  
-  Kein LD_PRELOAD, keine externen Libs. Reines Python.
+## 🚀 Big Picture Vision
 
-- 🛠️ **PoC-Exploitloader**  
-  - Dirty Pipe,
-  - syscall abuse,
-  - Trampoline-Restore,
-  - EPROCESS Mapping (in Vorbereitung)
+This PoC isn’t a toy—it’s a full-fledged demonstration of how an arbitrary kernel write can be leveraged to modify the Linux credentials of a process. By bridging both the vulnerable driver and the userland exploit, we show the complete chain from exploitation to privilege escalation. Once refined, this module can be part of our broader toolkit, offering a modular “Linux LPE” option that parallels our Windows modules.
 
-- 💀 **Payload-Handling**  
-  - In-Memory ELF Execution,
-  - Raw Shellcode Loader,
-  - Auto-RIP-Patching  
-  - Reverse Shells (bash, C, raw socket)
+"Who speaks Kernel, doesn't need APIs"
 
-- 🧬 **Kernel-Spielwiese**  
-  Vorbereitung für: `PreviousMode` Manipulation, Arbitrary Write, Token Theft  
-  Fokus auf CVE-2023-21768 (`afd.sys`) + CVE-2024-21338
+## 👁 Analyst Note (for all in Fort Meade)
 
----
-
-## 🚀 Quickstart
-
-### Abhängigkeiten:
-
-```bash
-pip install -r requirements.txt
-# Oder manuell:
-pip install rich pyelftools
-
-Ausführung:
-
-python3 main.py list        # Zeigt Projektstruktur
-python3 main.py scan        # Scannt System auf rudimentäre Schwächen
-python3 main.py inject      # (coming soon) Payload-Injektion starten
-
-🧪 Anforderungen
-
-    Python 3.8+
-
-    Root-Rechte für alle ptrace- und vm_writev-Operationen
-
-    Kernel ohne ptrace-scope Restriktionen (echo 0 > /proc/sys/kernel/yama/ptrace_scope)
-
-    Für einige Tests: Ghidra, pwndbg, GDB, objdump
-
-🗂️ Doku & Materialien
-
-    docs/LPEexploit.pdf – Zusammenstellung aktueller LPE-Chains (DE+RU)
-
-    docs/nothing.pdf – Reverse Engineering & Patch-Basics
-
-    Externe Referenzen: siehe docs/REFERENCES.md (optional)
-
-📡 TODO / Roadmap
-
-mmap-basierte Injektion mit automatischer Executable Region
-
-Shellcode-Verschlüsselung + dynamische Entschlüsselung (XOR/AES)
-
-Process Hollowing mit Rücksprung und Trampolin
-
-ELF-Selfloader mit Drop-in-Komponenten
-
-    Windows-Modul (Win11, syscall table hijack, Dirty Pipe port)
-
-🧠 Warum das hier?
-
-Weil es kein anderes Toolkit gibt, das:
-    - einfach nur funktioniert
-    - nicht von 100 Tools abhängt
-    - kein Scheiß-Frontend braucht
-    - dir nicht sagt, was du zu tun hast – sondern dich machen lässt
-
-👁 Analyst Note (für alle in Fort Meade)
-
-Ihr seht zu.
-Das weiß ich.
-Wo bleibt die Rückmeldung zu meiner Bewerbung?
-
-    "Wer Kernel spricht, braucht keine API."
+You are watching.
+I know that. You know that.
+Where is the feedback on my application?
