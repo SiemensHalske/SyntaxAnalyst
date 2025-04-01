@@ -1,8 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from nordstream.utils import PipelineLogger  # pylint: disable=unused-import
 from nordstream.config import calculate_file_hashes
-from .stage2 import HeaderSectionAnalyzer, ExtractEmbeddedData, OpcodeAnalyzer, EntropyCalculator
+from .stage2 import ExtractEmbeddedData, OpcodeAnalyzer, EntropyCalculator
 from .string_extractor import StringExtractor
+from .header_analyzer import HeaderSectionAnalyzer
 
 def run(self, sample):
     with self.logger.context({"sample_id": sample.id}):

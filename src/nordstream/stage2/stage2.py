@@ -9,39 +9,6 @@ from nordstream.stage2.stage2_run import run as stage2_run
 from nordstream.stage2.base import SubtaskBase
 
 
-class HeaderSectionAnalyzer(SubtaskBase):
-    """
-    🧩 Subtask B – Header and Section Analysis
-    🎯 Purpose
-        - Parse executable headers and analyze memory sections for structural anomalies.
-
-    🔍 Details
-        - PE (Windows): entry point, imports, exports, section sizes and flags
-        - ELF (Linux): segments, symbols, stripped or malformed headers
-        - Detect unusual sections, non-standard permissions (e.g., RWX)
-
-    🛠️ Tools/Packages
-        - `pefile` (for PE binaries)
-        - `pyelftools` (for ELF binaries)
-
-    📦 Output
-        - Dictionary structure or JSON with parsed header metadata
-        - Attached to Sample.headers
-    """
-
-    def __init__(self):
-        self.logger = PipelineLogger(use_json=False)
-
-    def run(self, sample: Sample):
-        """
-        Run the string extraction subtask on the given sample.
-        """
-
-        self.logger.info("Not implemented yet.")
-
-        return {}
-
-
 class ExtractEmbeddedData(SubtaskBase):
     """
     🧩 Subtask C – Embedded Data & Resource Extraction
