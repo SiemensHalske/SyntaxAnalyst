@@ -48,3 +48,4 @@ pipeline_scripts/output/metadata_*.json
 *.gpr.xml
 *.rep.xml
 
+.gitignore
