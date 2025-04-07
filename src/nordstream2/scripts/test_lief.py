@@ -1,3 +1,9 @@
+"""
+just to see if pylint wants to fuck with me
+or if lief has some import problem. but i think
+i know whos the sucker here...
+"""
+
 import sys
 import zipfile
 from pathlib import Path
