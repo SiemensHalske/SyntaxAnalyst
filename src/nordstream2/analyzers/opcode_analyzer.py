@@ -1,28 +1,52 @@
-"""
-This module contains the OpcodeAnalyzer class, which is responsible for analyzing
-the opcode frequency in a binary file. The class inherits from the Analyzer base class
-and implements the analyze method to perform the analysis.
-It uses the capstone library to disassemble the binary and analyze the opcode
-frequency.
-"""
-
 from nordstream2.analyzers import Analyzer
+from capstone import Cs, CS_ARCH_X86, CS_MODE_64
+from collections import Counter
 
 class OpcodeAnalyzer(Analyzer):
     """
     Analyzes the opcode frequency in the binary file.
-    This class is responsible for disassembling the binary and analyzing the opcode
-    frequency. It can be used to identify patterns or anomalies in the code structure
-    that may indicate malicious behavior.
+    This class disassembles the binary and analyzes the opcode frequency,
+    potentially revealing patterns that could indicate malicious behavior.
     """
+
+    def read_sample(self):
+        """
+        Reads the binary sample file.
+        This method is a placeholder and can be extended to read the sample
+        in different ways if needed.
+        """
+        self.logger.info("Reading sample file...")
+        data = None
+        try:
+            with open(self.sample_path, 'rb') as f:
+                data = f.read()
+                return data
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"Failed to read file: {e}")
+            return None
 
     def analyze(self):
         """
-        Analyzes the opcode frequency in the binary file.
-        This method disassembles the binary and analyzes the frequency of opcodes.
-        The analysis can be used to identify patterns or anomalies in the code structure
-        that may indicate malicious behavior.
+        Disassembles the binary and analyzes the frequency of opcodes.
+        Returns a dict mapping each opcode mnemonic to its frequency.
         """
-        # Use a library like capstone to disassemble the binary and analyze opcodes
         self.logger.info("Analyzing opcode frequency...")
-        return {}
+
+        code = self.read_sample()
+        if code is None:
+            self.logger.error("No data to analyze.")
+            return {}
+
+        # Set up Capstone for 64-bit x86. You can make this configurable.
+        disasm = Cs(CS_ARCH_X86, CS_MODE_64)
+        disasm.detail = False
+
+        opcode_counter = Counter()
+        try:
+            for instr in disasm.disasm(code, 0x1000):  # arbitrary starting addr
+                opcode_counter[instr.mnemonic] += 1
+        except Exception as e:
+            self.logger.error(f"Disassembly failed: {e}")
+            return {}
+
+        return dict(opcode_counter)
