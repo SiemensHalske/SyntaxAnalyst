@@ -6,8 +6,10 @@ from .string_extractor import StringExtractor
 from .header_analyzer import HeaderSectionAnalyzer
 
 def run(self, sample):
-    with self.logger.context({"sample_id": sample.id}):
-        self.logger.info(f"Processing sample id: {sample.id}")
+    # `Sample` objects expose the identifier as ``uuid``.  Using ``id``
+    # would raise an :class:`AttributeError` and stop the pipeline.
+    with self.logger.context({"sample_id": sample.uuid}):
+        self.logger.info(f"Processing sample id: {sample.uuid}")
 
         tasks = {
             "strings": StringExtractor(),
@@ -42,5 +44,7 @@ def run(self, sample):
         sample.opcodes = results["opcodes"]
         sample.entropy = results["entropy"]
 
-        self.logger.info(f"Completed processing for sample id: {sample.id}")
-        sample.hashes["stage2"] = calculate_file_hashes(2, sample.file_path)
+        self.logger.info(f"Completed processing for sample id: {sample.uuid}")
+        # store the newly calculated hashes in the expected ``stage2_hashes``
+        # entry of the sample
+        sample.hashes["stage2_hashes"] = calculate_file_hashes(2, sample.file_path)

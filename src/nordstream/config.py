@@ -125,13 +125,21 @@ class HashValidator:
 
 
 def init_sample_tree() -> dict:
+    """Generate a dictionary with empty hash trees using the same keys as
+    used inside the :class:`Sample` dataclass.
+
+    Previously this function returned keys ``stage1``, ``stage2`` and
+    ``stage3``.  The :class:`Sample` dataclass however expects keys named
+    ``stage1_hashes`` etc.  This mismatch resulted in code adding new keys
+    on the fly (e.g. ``sample_tree["stage1_hashes"]``) leaving the original
+    unused entries behind.  Returning the correct keys ensures consistent
+    behaviour across the pipeline.
     """
-        Generate a dictionary with empty hash trees.
-        """
+
     return {
-        "stage1": HashTree(),
-        "stage2": HashTree(),
-        "stage3": HashTree()
+        "stage1_hashes": HashTree(),
+        "stage2_hashes": HashTree(),
+        "stage3_hashes": HashTree(),
     }
 
 

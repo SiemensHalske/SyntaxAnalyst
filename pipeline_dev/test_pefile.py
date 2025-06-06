@@ -17,7 +17,7 @@ def pefile_test(file_path):
     """
 
     # Parse the PE header
-    pe = pefile.PE(filename)
+    pe = pefile.PE(file_path)
 
     print("[*] Listing imported functions:")
     if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
