@@ -9,7 +9,7 @@ def run(self, sample):
     # `Sample` objects expose the identifier as ``uuid``.  Using ``id``
     # would raise an :class:`AttributeError` and stop the pipeline.
     with self.logger.context({"sample_id": sample.uuid}):
-        self.logger.info(f"Processing sample id: {sample.uuid}")
+        self.logger.info(f"Processing sample uuid: {sample.uuid}")
 
         tasks = {
             "strings": StringExtractor(),
@@ -44,7 +44,7 @@ def run(self, sample):
         sample.opcodes = results["opcodes"]
         sample.entropy = results["entropy"]
 
-        self.logger.info(f"Completed processing for sample id: {sample.uuid}")
+        self.logger.info(f"Completed processing for sample uuid: {sample.uuid}")
         # store the newly calculated hashes in the expected ``stage2_hashes``
         # entry of the sample
         sample.hashes["stage2_hashes"] = calculate_file_hashes(2, sample.file_path)
