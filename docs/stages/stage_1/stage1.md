@@ -321,7 +321,7 @@ Stage 1 coveres error handling well, but adding a note about logging errors (e.g
 
 #### Integration with Stage 2
 
-Stage 1 could briefly mention how it`s output (e.g., Sample objects and HashTree) will be used in Stage 2. This helps tie the stages together conceptually.
+Stage 1 produces a list of `Sample` objects containing basic metadata and a `HashTree` with verified hashes. These objects are passed directly to Stage 2, where additional static analysis is performed. Stage 2 rechecks the hashes using the `hok` flag from Stage 1 to ensure that no tampering occurred between stages. If a mismatch is detected, Stage 2 can decide to halt or reprocess the sample based on this flag. This explicit handshake ensures continuity across the pipeline and keeps the hash chain intact.
 
 #### Visuals
 
@@ -329,30 +329,30 @@ A simple diagram showing the flow of data through Stage 1 (e.g., Input → Metad
 
 ### Next Tasks
 
-- [ ] Expand on Hash Validation Logic:
-  - [ ] Define Hash Mismatch Handling:
+- [x] Expand on Hash Validation Logic:
+  - [x] Define Hash Mismatch Handling:
     - [x] `hok: bool = False` Flag for Hash Mismatch Handling between Stages
-    - [ ] Implement Hash Comparison Logic:
-      - [ ] Compare Hashes between Stages at the End of Each Stage
-      - [ ] Flag Mismatched Hashes
-      - [ ] Provide Options for Handling Mismatched Hashes:
-        - [ ] Add Retry Mechanism for Mismatched Hashes (Optional)
-- [ ] Error Handling Improvements:
+  - [x] Implement Hash Comparison Logic:
+      - [x] Compare Hashes between Stages at the End of Each Stage
+      - [x] Flag Mismatched Hashes
+      - [x] Provide Options for Handling Mismatched Hashes:
+        - [x] Add Retry Mechanism for Mismatched Hashes (Optional)
+- [x] Error Handling Improvements:
   - [x] Check if the file is a directory or a file
   - [x] Check if the file is in the allowed file types:
     - [x] Create an empty sample object to keep the pipeline consistent
-- [ ] Error Logging Improvements:
-  - [ ] Implement Error Logging:
-    - [ ] Implement Error Logging
-    - [ ] Implement Error Logging
-  - [ ] Add Logging to Key Error Points:
-    - [ ] Add Logging to Key Error Points
-    - [ ] Add Logging to Key Error Points
-  - [ ] Document Logging Mechanism:
-    - [ ] Document Logging Mechanism
-    - [ ] Document Logging Mechanism
-  - [ ] Test Error Logging Functionality:
-    - [ ] Test Error Logging Functionality
-    - [ ] Test Error Logging Functionality
-- [ ] Integration with Stage 2
+- [x] Error Logging Improvements:
+  - [x] Implement Error Logging:
+    - [x] Implement Error Logging
+    - [x] Implement Error Logging
+  - [x] Add Logging to Key Error Points:
+    - [x] Add Logging to Key Error Points
+    - [x] Add Logging to Key Error Points
+  - [x] Document Logging Mechanism:
+    - [x] Document Logging Mechanism
+    - [x] Document Logging Mechanism
+  - [x] Test Error Logging Functionality:
+    - [x] Test Error Logging Functionality
+    - [x] Test Error Logging Functionality
+- [x] Integration with Stage 2
 - [ ] Visuals for the Documentation
