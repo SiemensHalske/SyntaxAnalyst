@@ -2,7 +2,16 @@
 To be edited...
 """
 
+import os
+import shutil
+import tempfile
+import zipfile
+import tarfile
+
+import binwalk
 import pefile
+from elftools.elf.elffile import ELFFile
+
 from nordstream.utils import PipelineLogger
 from nordstream.config import Sample
 from nordstream.stage2.base import SubtaskBase
@@ -148,8 +157,25 @@ class ELFParser(Parser):
         """
         Parse the ELF file and extract relevant information.
         """
-        # Placeholder for ELF parsing logic
-        return {}
+        self.file_data = self.load_file()
+        if not self.file_data:
+            self.logger.warning(f"No data found in {self.file_path}")
+            return {}
+
+        try:
+            with open(self.file_path, "rb") as f:
+                elf = ELFFile(f)
+                for section in elf.iter_sections():
+                    try:
+                        data = section.data()
+                    except Exception:  # pylint: disable=broad-except
+                        data = b""
+                    self.embedded_data[section.name] = data
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"ELF parsing failed: {e}")
+            return {}
+
+        return self.embedded_data
 
 
 class DLLParser(Parser):
@@ -164,8 +190,14 @@ class DLLParser(Parser):
         """
         Parse the DLL file and extract relevant information.
         """
-        # Placeholder for DLL parsing logic
-        return {}
+        try:
+            parser = PEParser(self.file_path)
+            self.embedded_data = parser.get_data()
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"DLL parsing failed: {e}")
+            return {}
+
+        return self.embedded_data
 
 
 class EXEParser(Parser):
@@ -180,8 +212,14 @@ class EXEParser(Parser):
         """
         Parse the EXE file and extract relevant information.
         """
-        # Placeholder for EXE parsing logic
-        return {}
+        try:
+            parser = PEParser(self.file_path)
+            self.embedded_data = parser.get_data()
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"EXE parsing failed: {e}")
+            return {}
+
+        return self.embedded_data
 
 
 class BINParser(Parser):
@@ -196,8 +234,34 @@ class BINParser(Parser):
         """
         Parse the BIN file and extract relevant information.
         """
-        # Placeholder for BIN parsing logic
-        return {}
+        self.file_data = self.load_file()
+        if not self.file_data:
+            self.logger.warning(f"No data found in {self.file_path}")
+            return {}
+
+        tmp_dir = tempfile.mkdtemp(prefix="nordstream_bin_")
+        try:
+            binwalk.scan(self.file_path,
+                         signature=True,
+                         extract=True,
+                         quiet=True,
+                         directory=tmp_dir)
+
+            for root_dir, _, files in os.walk(tmp_dir):
+                for fname in files:
+                    path = os.path.join(root_dir, fname)
+                    try:
+                        with open(path, "rb") as f:
+                            self.embedded_data[fname] = f.read()
+                    except Exception:  # pylint: disable=broad-except
+                        continue
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"BIN parsing failed: {e}")
+        finally:
+            if os.path.exists(tmp_dir):
+                shutil.rmtree(tmp_dir)
+
+        return self.embedded_data
 
 
 class ArchiveParser(Parser):
@@ -212,8 +276,38 @@ class ArchiveParser(Parser):
         """
         Parse the archive file and extract relevant information.
         """
-        # Placeholder for archive parsing logic
-        return {}
+        self.file_data = self.load_file()
+        if not self.file_data:
+            self.logger.warning(f"No data found in {self.file_path}")
+            return {}
+
+        if zipfile.is_zipfile(self.file_path):
+            try:
+                with zipfile.ZipFile(self.file_path, "r") as zf:
+                    for name in zf.namelist():
+                        try:
+                            self.embedded_data[name] = zf.read(name)
+                        except Exception:  # pylint: disable=broad-except
+                            continue
+            except Exception as e:  # pylint: disable=broad-except
+                self.logger.error(f"ZIP parsing failed: {e}")
+        elif tarfile.is_tarfile(self.file_path):
+            try:
+                with tarfile.open(self.file_path, "r:*") as tf:
+                    for member in tf.getmembers():
+                        if member.isfile():
+                            try:
+                                fobj = tf.extractfile(member)
+                                if fobj:
+                                    self.embedded_data[member.name] = fobj.read()
+                            except Exception:  # pylint: disable=broad-except
+                                continue
+            except Exception as e:  # pylint: disable=broad-except
+                self.logger.error(f"TAR parsing failed: {e}")
+        else:
+            self.logger.warning("Unsupported archive type")
+
+        return self.embedded_data
 
 
 class ExtractEmbeddedData(SubtaskBase):
@@ -262,6 +356,21 @@ class ExtractEmbeddedData(SubtaskBase):
         if file_type == "PE":
             parser = PEParser(file_path)
             extracted_data = parser.get_data()
+        elif file_type == "ELF":
+            parser = ELFParser(file_path)
+            extracted_data = parser.get_data()
+        elif file_type == "DLL":
+            parser = DLLParser(file_path)
+            extracted_data = parser.get_data()
+        elif file_type == "EXE":
+            parser = EXEParser(file_path)
+            extracted_data = parser.get_data()
+        elif file_type == "BIN":
+            parser = BINParser(file_path)
+            extracted_data = parser.get_data()
+        elif file_type == "ARCHIVE":
+            parser = ArchiveParser(file_path)
+            extracted_data = parser.get_data()
 
         return extracted_data
 
@@ -275,7 +384,7 @@ class ExtractEmbeddedData(SubtaskBase):
         file_type = sample.file_type
 
         # Check which type of file it is
-        if file_type not in ["PE", "ELF", "DLL", "EXE", "BIN"]:
+        if file_type not in ["PE", "ELF", "DLL", "EXE", "BIN", "ARCHIVE"]:
             self.logger.warning(f"Unsupported file type: {file_type}")
             return {}
 
