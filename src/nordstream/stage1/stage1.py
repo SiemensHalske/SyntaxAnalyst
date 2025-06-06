@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Script Name: nordsream/stage1/stage1.py
+Script Name: nordstream/stage1/stage1.py
 Author: Hendrik Siemens
 Date Created: 2025-03-21
 Last Modified: 2025-03-23
@@ -15,7 +15,7 @@ Description:
     to a JSON file.
 
 Usage:
-    python3 nordsream/stage1/stage1.py [options]
+    python3 nordstream/stage1/stage1.py [options]
 
 Requirements:
     - Python >= 3.6
