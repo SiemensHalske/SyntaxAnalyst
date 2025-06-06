@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 import lief
 import pefile
+from elftools.elf.elffile import ELFFile
 from nordstream2.analyzers import Analyzer
 
 
@@ -83,37 +84,89 @@ class HeaderAnalyzer(Analyzer):
 
     def _analyze_unix_binary(
             self,
-            binary_type: str = "Unknown",
-            entry_point: str = "0x0",
-            arch: str = "Unknown",
-            sections: Optional[list] = None
+            binary_type: str,
+            entry_point: str,
+            arch: str,
+            bits: int,
+            endian: str,
+            sections: Optional[list] = None,
+            libraries: Optional[list] = None
     ) -> Dict[str, Any]:
-        """
-        This method is a placeholder for analyzing Unix binaries.
-        Currently, it does not perform any analysis.
-        """
+        """Builds a common metadata dictionary for ELF and Mach-O binaries."""
         return {
-            "binary_type": binary_type,
+            "format": binary_type,
+            "architecture": arch,
+            "bits": bits,
+            "endian": endian,
             "entry_point": entry_point,
-            "arch": arch,
-            "sections": sections
+            "sections": sections,
+            "libraries": libraries,
         }
 
-    def _analyze_elf(self, elf) -> Dict[str, str]:
-        return self._analyze_unix_binary(
-            binary_type="ELF",
-            entry_point=hex(elf.entrypoint),
-            arch=str(elf.header.machine_type).rsplit('.', maxsplit=1)[-1],
-            sections=[section.name for section in elf.sections]
-        )
+    def _analyze_elf(self, _elf) -> Dict[str, Any]:
+        try:
+            with open(self.sample_path, 'rb') as f:
+                elffile = ELFFile(f)
+                entry_point = hex(elffile.header['e_entry'])
+                arch = elffile.get_machine_arch()
+                bits = elffile.elfclass
+                endian = 'little' if elffile.little_endian else 'big'
+                sections = [
+                    {
+                        'name': sec.name,
+                        'size': sec['sh_size'],
+                        'type': sec['sh_type']
+                    }
+                    for sec in elffile.iter_sections()
+                ]
+                libs = []
+                dynamic = elffile.get_section_by_name('.dynamic')
+                if dynamic:
+                    libs = [t.needed for t in dynamic.iter_tags('DT_NEEDED')]
+            return self._analyze_unix_binary(
+                binary_type='ELF',
+                entry_point=entry_point,
+                arch=arch,
+                bits=bits,
+                endian=endian,
+                sections=sections,
+                libraries=libs
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"ELF analysis failed: {e}")
+            return {"format": "ELF", "error": str(e)}
 
-    def _analyze_macho(self, macho) -> Dict[str, str]:
-        return self._analyze_unix_binary(
-            binary_type="Mach-O",
-            entry_point=hex(macho.entrypoint),
-            arch=str(macho.header.cpu_type).rsplit('.', maxsplit=1)[-1],
-            sections=[section.name for section in macho.sections]
-        )
+    def _analyze_macho(self, macho) -> Dict[str, Any]:
+        try:
+            entry_point = hex(macho.entrypoint)
+            arch = str(macho.header.cpu_type).rsplit('.', maxsplit=1)[-1]
+            bits = 64 if macho.header.is_64 else 32
+            end_map = {
+                lief.MachO.ENDIANNESS.LITTLE: 'little',
+                lief.MachO.ENDIANNESS.BIG: 'big',
+            }
+            endian = end_map.get(macho.header.endianness, 'unknown')
+            sections = [
+                {
+                    'name': sec.name,
+                    'size': sec.size,
+                    'type': sec.type.name
+                }
+                for sec in macho.sections
+            ]
+            libs = [lib.name for lib in macho.libraries]
+            return self._analyze_unix_binary(
+                binary_type='Mach-O',
+                entry_point=entry_point,
+                arch=arch,
+                bits=bits,
+                endian=endian,
+                sections=sections,
+                libraries=libs
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"Mach-O analysis failed: {e}")
+            return {"format": "Mach-O", "error": str(e)}
 
     def _analyze_apk(self):
         try:
