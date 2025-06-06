@@ -33,13 +33,20 @@ class ExtractEmbeddedData(SubtaskBase):
         self.logger = PipelineLogger(use_json=False)
 
     def run(self, sample: Sample):
-        """
-        Run the string extraction subtask on the given sample.
-        """
+        """Extract embedded resources using ``binwalk``."""
+        try:
+            from nordstream2.analyzers.embedded_extractor import (
+                EmbeddedDataExtractor,
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            self.logger.error(f"Failed loading extractor: {exc}")
+            return {}
 
-        self.logger.info("Not implemented yet.")
-
-        return {}
+        self.logger.info(f"Scanning {sample.file_path} for embedded data")
+        extractor = EmbeddedDataExtractor(sample.file_path)
+        files = extractor.extract()
+        self.logger.info(f"Found {len(files)} embedded item(s)")
+        return {"files": files}
 
 
 class OpcodeAnalyzer(SubtaskBase):
@@ -65,13 +72,18 @@ class OpcodeAnalyzer(SubtaskBase):
         self.logger = PipelineLogger(use_json=False)
 
     def run(self, sample: Sample):
-        """
-        Run the string extraction subtask on the given sample.
-        """
+        """Disassemble the sample and count opcode frequency."""
+        try:
+            from nordstream2.analyzers.opcode_analyzer import OpcodeAnalyzer as _OA
+        except Exception as exc:  # pylint: disable=broad-except
+            self.logger.error(f"Failed loading opcode analyzer: {exc}")
+            return {}
 
-        self.logger.info("Not implemented yet.")
-
-        return {}
+        self.logger.info(f"Analyzing opcodes in {sample.file_path}")
+        analyzer = _OA(sample.file_path)
+        opcodes = analyzer.analyze()
+        self.logger.info(f"Extracted {len(opcodes)} unique opcode(s)")
+        return opcodes
 
 
 class EntropyCalculator(SubtaskBase):
@@ -97,13 +109,20 @@ class EntropyCalculator(SubtaskBase):
         self.logger = PipelineLogger(use_json=False)
 
     def run(self, sample: Sample):
-        """
-        Run the string extraction subtask on the given sample.
-        """
+        """Calculate Shannon entropy of the sample."""
+        try:
+            from nordstream2.analyzers.entropy_calculator import (
+                EntropyCalculator as _EC,
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            self.logger.error(f"Failed loading entropy calculator: {exc}")
+            return 0.0
 
-        self.logger.info("Not implemented yet.")
-
-        return {}
+        self.logger.info(f"Calculating entropy for {sample.file_path}")
+        calculator = _EC(sample.file_path)
+        entropy = calculator.calculate()
+        self.logger.info(f"Entropy: {entropy:.4f}")
+        return entropy
 
 
 class Stage2:
@@ -134,13 +153,6 @@ class Stage2:
         self.stage1 = stage1
         self.logger = PipelineLogger(use_json=False)
 
-    def run(self):
-        """
-        Run Stage 2 of the pipeline.
-        """
-        dummy_sample = Sample(
-            uuid="dummy",
-            timestamp="dummy",
-            file_path="dummy",
-        )
-        stage2_run(self, dummy_sample)
+    def run(self, sample: Sample):
+        """Run Stage 2 analysis on a given ``Sample``."""
+        stage2_run(self, sample)
