@@ -115,7 +115,7 @@ class Stage1(BaseStage):
         ]
 
         # Group file types into categories
-        file_type_groupes = {
+        file_type_groups = {
             "executable": executable_types,
             "archive": archive_types,
             "document": document_types
@@ -123,7 +123,7 @@ class Stage1(BaseStage):
 
         # Check if the detected file type matches any of the known types
         # If exectuable return either PE, ELF, MachO or APK
-        for group, types in file_type_groupes.items():
+        for group, types in file_type_groups.items():
             if file_type in types:
                 self.logger.info(f"File type recognized as {group}.")
                 if group == "executable":
