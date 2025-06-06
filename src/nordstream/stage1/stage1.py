@@ -43,6 +43,8 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import print  # pylint: disable=redefined-builtin, unused-import
 
+from nordstream.utils import PipelineLogger
+
 from nordstream.config import (
     AllowedTypes, Sample, HashValidator, calculate_file_hashes, init_sample_tree
 )
@@ -84,6 +86,7 @@ class Stage1:
         self.save_metadata = save_meta
         self.samples = []
         self.console = Console()
+        self.logger = PipelineLogger(use_json=False)
 
     def display_summary(self, sample: Sample) -> None:
         """
@@ -126,6 +129,7 @@ class Stage1:
         if not ack:
             self.console.print(
                 "[bold red]Error:[/bold red] Failed to process samples.")
+            self.logger.error("Failed to process samples")
             return False
 
         if not self.save_metadata:
@@ -136,6 +140,7 @@ class Stage1:
         if not ack:
             self.console.print(
                 "[bold red]Error:[/bold red] Failed to save metadata.")
+            self.logger.error("Failed to save metadata")
             return False
 
         return True
@@ -194,6 +199,19 @@ class Stage1:
         # -----
 
         sample = HashValidator.comp_hash(sample, 1)
+        if not sample.hashes["stage1_hashes"].hok:
+            self.logger.error(f"Hash mismatch detected for {file_path}")
+            retry = Prompt.ask(
+                "Hash mismatch detected. Recalculate hashes? (y/N)",
+                default="n",
+            )
+            if retry.lower() == "y":
+                sample_tree["stage1_hashes"] = calculate_file_hashes(1, file_path)
+                sample = HashValidator.comp_hash(sample, 1)
+                if not sample.hashes["stage1_hashes"].hok:
+                    self.logger.error(
+                        f"Hash mismatch persists for {file_path} after retry"
+                    )
         # -----
 
         return sample
@@ -208,6 +226,7 @@ class Stage1:
 
         if not Path(self.input_file).exists():
             self.console.print("[bold red]Error:[/bold red] File not found.")
+            self.logger.error(f"File not found: {self.input_file}")
             return False
 
         sample = self.process_file(self.input_file)
@@ -228,6 +247,7 @@ class Stage1:
         if not Path(self.input_file).exists():
             self.console.print(
                 "[bold red]Error:[/bold red] Directory not found.")
+            self.logger.error(f"Directory not found: {self.input_file}")
             return False
 
         files = [f for f in os.listdir(self.input_file) if os.path.isfile(
@@ -271,6 +291,7 @@ class Stage1:
         if not os.path.exists(in_file):
             self.console.print(
                 f"[bold red]Error:[/bold red] File not found: {in_file}")
+            self.logger.error(f"File not found during analysis: {in_file}")
             return False
 
         try:
@@ -290,6 +311,7 @@ class Stage1:
         except Exception as e:
             self.console.print(
                 f"[bold red]Error:[/bold red] Failed to analyze file '{in_file}': {str(e)}")
+            self.logger.exception(e, f"Failed to analyze file {in_file}")
             return False
 
     def save_metadata_to_file(self) -> bool:
@@ -316,6 +338,7 @@ class Stage1:
                 "[bold red]Error:[/bold red] Failed to create output directory "
                 f"'{self.output_dir}': {str(e)}"
             )
+            self.logger.exception(e, "Failed to create output directory")
             return False
 
         # Ensure there are samples to save
@@ -324,6 +347,7 @@ class Stage1:
                 "[bold red]Error:[/bold red] No samples to save. "
                 "Metadata file will not be created."
             )
+            self.logger.error("No samples available for metadata save")
             return False
 
         # Generate metadata file name
@@ -346,6 +370,7 @@ class Stage1:
                 "[bold red]Error:[/bold red] Failed to write metadata to file "
                 f"'{metadata_file}': {str(e)}"
             )
+            self.logger.exception(e, "Failed to write metadata file")
             return False
 
     def ensure_file(self, file_path: str) -> bool:
@@ -356,16 +381,19 @@ class Stage1:
         if not Path(file_path).exists():
             self.console.print(
                 f"[bold red]Error:[/bold red] File not found: {file_path}")
+            self.logger.error(f"File not found: {file_path}")
             return False
 
         if not Path(file_path).is_file():
             self.console.print(
                 f"[bold red]Error:[/bold red] Invalid file: {file_path}")
+            self.logger.error(f"Invalid file: {file_path}")
             return False
 
         if not os.access(file_path, os.R_OK):
             self.console.print(
                 f"[bold red]Error:[/bold red] Permission denied: {file_path}")
+            self.logger.error(f"Permission denied: {file_path}")
             return False
 
         # check if the file extension is in the allowed types
@@ -373,6 +401,7 @@ class Stage1:
         if file_type not in AllowedTypes.__dict__.values():
             self.console.print(
                 f"[bold red]Error:[/bold red] Invalid file type: {file_type}")
+            self.logger.error(f"Invalid file type: {file_type}")
             return False
 
         return True
@@ -387,6 +416,7 @@ class Stage1:
             f"[bold]Timestamp:[/bold] {timestamp}\n",
             title="Pipeline Stage"
         ))
+        self.logger.info("Stage 1 started")
         self.process_samples()
 
 
